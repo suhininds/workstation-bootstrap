@@ -34,11 +34,13 @@
 
 ## Этап 1 — Bootstrap (10 мин wall-clock, 2 мин активно)
 
-Открой Terminal на новом маке, скопируй и запусти:
+Открой Terminal на новом маке, скопируй и запусти **одной строкой**:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/suhininds/workstation-bootstrap/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/suhininds/workstation-bootstrap/main/bootstrap.sh -o /tmp/bootstrap.sh && chmod +x /tmp/bootstrap.sh && /tmp/bootstrap.sh
 ```
+
+> **Почему так, а не через `| bash`:** Homebrew installer внутри попросит admin-пароль (sudo). Через pipe `| bash` stdin не интерактивный → sudo не сможет принять пароль. Сначала скачиваем, потом запускаем — пароль вводится нормально.
 
 Что произойдёт:
 1. Установится Xcode CLI tools (откроется окно — "Install" → "Agree")

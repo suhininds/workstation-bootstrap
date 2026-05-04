@@ -24,8 +24,10 @@
 ## Запуск
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/suhininds/workstation-bootstrap/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/suhininds/workstation-bootstrap/main/bootstrap.sh -o /tmp/bootstrap.sh && chmod +x /tmp/bootstrap.sh && /tmp/bootstrap.sh
 ```
+
+> Версия с `| bash` тоже работает, но Homebrew installer внутри требует admin-пароль через sudo, и pipe ломает интерактивный ввод. Сначала скачать, потом запустить — пароль вводится нормально.
 
 После завершения — продолжить:
 
