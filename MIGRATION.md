@@ -73,7 +73,7 @@ cd "$(chezmoi source-path)"
 ```
 
 Что делает `apply.sh`:
-- `brew bundle` ставит ~25 cask (1Password, Claude, Cursor, Telegram, Bitrix24, Office, JetBrains Toolbox, ngrok и т.д.)
+- `brew bundle` ставит ~25 cask (1Password, Claude, Cursor, Telegram, Bitrix24, Office, ngrok и т.д.)
 - macOS defaults: Dock, Finder, скриншоты, клавиатура
 - Загружает оба LaunchAgent (drift + memory)
 
@@ -88,14 +88,7 @@ cd "$(chezmoi source-path)"
 
 Все строки должны быть ✅.
 
-## Этап 3 — JetBrains (10 мин)
-
-- [ ] Открой **JetBrains Toolbox** (поставился через brew cask)
-- [ ] Залогинься в **JetBrains Account** (Google login если корпоративная подписка)
-- [ ] Поставь PyCharm Pro (лицензия подтянется автоматически из аккаунта)
-- [ ] Открой PyCharm один раз → **Settings Sync** включить → подтянутся настройки + плагины с предыдущего мака
-
-## Этап 4 — Manual installs (15-30 мин)
+## Этап 3 — Manual installs (15-30 мин)
 
 Открой `~/.local/share/chezmoi/manual-installs.md` или https://github.com/suhininds/workstation-dotfiles/blob/main/manual-installs.md и пройди по списку:
 
@@ -113,7 +106,7 @@ cd "$(chezmoi source-path)"
 
 В Brewfile уже стоит `cask "amneziavpn"` opt-in. Если другой — закомменти.
 
-## Этап 5 — Логины приложений (10 мин)
+## Этап 4 — Логины приложений (10 мин)
 
 Большинство приложений уже стоят — нужно только залогиниться:
 
@@ -126,7 +119,7 @@ cd "$(chezmoi source-path)"
 - [ ] **Claude.app** — войти под Anthropic аккаунтом
 - [ ] **Warp** — войти
 
-## Этап 6 — Передача короны memory-backup (1 мин)
+## Этап 5 — Передача короны memory-backup (1 мин)
 
 memory-backup сейчас бэкапит со старого мака. Передай право новому:
 
@@ -143,7 +136,7 @@ launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.suhininds.dotfiles.m
 # memory-backup на старом маке выключен
 ```
 
-## Этап 7 — Восстановить Claude memory (1 мин, опционально)
+## Этап 6 — Восстановить Claude memory (1 мин, опционально)
 
 Если хочешь чтобы Claude Code на новом маке имел всю память со старого:
 
