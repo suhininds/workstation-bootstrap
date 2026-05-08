@@ -136,7 +136,7 @@ launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/com.suhininds.dotfiles.m
 # memory-backup на старом маке выключен
 ```
 
-## Этап 6 — Восстановить Claude memory (1 мин, опционально)
+## Этап 6 — Восстановить Claude memory (3 мин, опционально)
 
 Если хочешь чтобы Claude Code на новом маке имел всю память со старого:
 
@@ -149,7 +149,62 @@ for proj in projects/*/memory; do
 done
 ```
 
-После этого все project notes / user preferences / feedback из старого мака будут доступны новому Claude Code.
+⚠️ **Имена папок зависят от пути юзера.** На старом маке `/Users/d.sukhinin/...` (с точкой) — папки названы `-Users-d-sukhinin-*`. На новом обычно `/Users/dsukhinin/...` (без точки). Claude Code на новом маке будет искать `-Users-dsukhinin-*` — нужно переименовать:
+
+```bash
+cd ~/.claude/projects
+for d in -Users-d-sukhinin*; do
+  new=$(echo "$d" | sed 's/^-Users-d-sukhinin/-Users-dsukhinin/')
+  mv -- "$d" "$new"   # `--` обязателен: имена начинаются с `-`
+done
+```
+
+После этого почисти старые `-d-sukhinin-` пути в репе бэкапа (иначе следующий запуск agent создаст дубликаты):
+
+```bash
+cd ~/.local/share/claude-memory-backup
+git rm -r projects/-Users-d-sukhinin*
+git commit -m "drop old -d-sukhinin- paths after host rename"
+git push origin main
+launchctl kickstart -k "gui/$(id -u)/com.suhininds.dotfiles.memory"   # синкнёт новые пути
+```
+
+## Этап 7 — Перенос рабочих проектов (15-30 мин, опционально)
+
+Если на старом маке остались проекты (`~/projects/...`), забери их через rsync. **На СТАРОМ маке** включи Remote Login:
+
+System Settings → General → **Sharing** → переключи **Remote Login** в ON (не путать с *Remote Management* — это VNC, разные службы). CLI `sudo systemsetup -setremotelogin on` требует Full Disk Access для Terminal — проще через GUI.
+
+Узнай локальный IP старого мака: `ipconfig getifaddr en0` (например `192.168.1.26`).
+
+**На НОВОМ маке** забери проекты:
+
+```bash
+mkdir -p ~/projects
+rsync -avh --progress --exclude '.venv' --exclude 'venv' --exclude '__pycache__' --exclude 'node_modules' --exclude '.next' --exclude '.DS_Store' --exclude '.claude' <user>@<old-ip>:/Users/<user>/projects/ ~/projects/
+```
+
+`.claude/` исключаем чтобы не затереть локальные настройки Claude Code, потом доскачаем точечно:
+
+```bash
+rsync -av <user>@<old-ip>:/Users/<user>/projects/.claude/ ~/projects/.claude/
+# для каждого проекта с .claude/ внутри:
+rsync -av <user>@<old-ip>:/Users/<user>/projects/<path>/.claude/ ~/projects/<path>/.claude/
+```
+
+Пересоздай Python venv'ы (системный `python3` на macOS = 3.9, многим пакетам нужен ≥3.10):
+
+```bash
+cd ~/projects/<project>
+/opt/homebrew/bin/python3.14 -m venv .venv   # явный путь, НЕ `python3 -m venv`
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Если pip падает на внутреннем пакете без PyPI (типа `vibecode-b24-bot`) — в `requirements.txt` укажи git-source: `<name> @ git+https://github.com/<org>/<repo>.git`.
+
+Для frontend: `npm install` в нужной папке.
 
 ## ✅ Финальный postflight
 
@@ -163,12 +218,37 @@ done
 
 Включи минимум раз в неделю, проверь что работает. Если новый Mac внезапно сломался — старый твой backup до выяснения.
 
+После 30 дней без проблем на новом — выключи Remote Login на старом (System Settings → Sharing → Remote Login OFF) и можешь архивировать.
+
+---
+
+## 📚 Lessons learned (миграция 2026-05)
+
+Грабли, реально сработавшие на этой миграции — на будущее:
+
+- **Mac App Store секция бесполезна.** `Readout` (com.benjitaylor.Readout) и `Google Docs/Sheets/Slides` в Mac App Store не существуют — Readout качается с сайта, Google Docs только web. Закомментированные `mas` строки в Brewfile можно удалить, секцию пропустить.
+- **Remote Login ≠ Remote Management.** В System Settings → Sharing это два РАЗНЫХ переключателя. Нужен именно `Remote Login` (Удалённый вход = SSH). `Remote Management` (Удалённое управление = VNC/ARD) для rsync не нужен.
+- **`sudo systemsetup -setremotelogin on` требует Full Disk Access для Terminal.** Без неё — `Turning Remote Login on or off requires Full Disk Access privileges.` Через GUI быстрее.
+- **SSH ключ с passphrase ломает postflight.** `ssh -o BatchMode=yes` не может ввести passphrase, postflight падает. На новом маке делай ключ без passphrase (`ssh-keygen -N ""`) или используй 1Password SSH agent.
+- **Системный `python3` на macOS = 3.9.6.** Многие пакеты требуют ≥3.10. Создавай venv через явный `/opt/homebrew/bin/python3.14`, не через `python3 -m venv`.
+- **Внутренние pip-пакеты без PyPI.** Если в `requirements.txt` имя без git URL (например `vibecode-b24-bot>=0.2.0`) — `pip install -r` упадёт. Замени на `<name> @ git+https://github.com/<org>/<repo>.git`.
+- **rsync проектов с `--exclude '.claude'`.** Иначе перетрёшь локальные настройки Claude Code на новом маке. После основного rsync доскачай `.claude/` папки точечно (отдельным rsync).
+- **`mv` с лидирующим `-` в имени.** `mv -Users-...` парсит дефис как опцию → `illegal option -- U`. Используй `mv -- "$d" "$new"`.
+- **memory-папки зависят от пути юзера.** Старый Mac: `/Users/d.sukhinin/` → `-Users-d-sukhinin-*`. Новый: `/Users/dsukhinin/` → `-Users-dsukhinin-*`. После восстановления memory обязательно переименовать (см. Этап 6).
+- **zsh + копипаст многострочной команды.** Line continuation `\` часто ломается, команда исполняется построчно с ошибками. Запускай критичные блоки одной строкой через `&&`.
+- **zsh без `setopt interactive_comments`** парсит `# текст` после команды как аргумент. Добавь `setopt interactive_comments` в `~/.zshrc` или не пиши инлайн-комментарии.
+- **1Password.app должен быть разлочен при `git commit`.** Если коммиты подписаны через `op-ssh-sign` (`gpg.format=ssh` + 1Password), и app залочен — коммит падает с `1Password: failed to fill whole buffer`. Touch ID на 1Password.app перед commit.
+- **GitHub PAT scopes.** `gh auth login --with-token` валидирует scopes и требует минимум `repo + read:org`. Только `repo` не пройдёт. Удобный костыль на время — `export GH_TOKEN=$(op read "op://Mac Setup/GitHub PAT/credential")`, чтобы не передавать токен через `--with-token`.
+- **microsoft-office cask конфликтует с onedrive cask** — Office уже включает OneDrive. Не ставь оба, иначе при `apply.sh` свалится конфликт.
+- **AmneziaVPN — Intel-only pkg.** На Apple Silicon требует Rosetta 2. До установки Rosetta — закомментируй cask, иначе `brew bundle` упадёт.
+- **`brew bundle check` Ruby ошибка `undefined method 'to_sym' for nil`** — лечится `brew update` (баг парсера в старой версии Homebrew).
+- **op binary с quarantine xattr.** На свежем маке `op` может быть убит Gatekeeper с exit 137. Лечится `xattr -d com.apple.quarantine /opt/homebrew/Caskroom/1password-cli/<ver>/op`.
+
 ---
 
 ## 🆘 Если что-то непонятно
 
 - **Полный план миграции:** `~/.local/share/chezmoi/docs/migration-plan-v4.2.html` (после bootstrap)
-- **Lessons learned (типичные грабли):** там же, секция 16
-- **Connect with Claude Code на новом маке** для debug (после `brew install` Claude.app — `brew install --cask claude`)
+- **Connect with Claude Code на новом маке** для debug (после `brew install --cask claude`) — у него в memory лежит `project_mac_migration_followup.md` с punch-list незакрытых хвостов.
 
 Удачного переезда! 🎉
